@@ -1,6 +1,6 @@
 [package]
 name = "cm5-usbboot"
-version = "0.1.0"
+version = "0.2.0"
 description = "Expose a Raspberry Pi Compute Module's eMMC/NVMe as a USB disk via rpiboot"
 authors = ["Kaan Ergun <kaanergun@me.com>"]
 license = "MIT"
