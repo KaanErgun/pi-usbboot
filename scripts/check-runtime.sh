@@ -9,6 +9,7 @@ for file in bin/rpiboot share/rpiboot/msd/bootcode.bin share/rpiboot/msd/start.e
     share/rpiboot/mass-storage-gadget64/config.txt; do
     [ -s "$runtime/$file" ] || { echo "Missing bundled file: $file. Run npm run prepare:runtime." >&2; exit 1; }
 done
+python3 "$root/scripts/check-boot-image.py" "$runtime/share/rpiboot/mass-storage-gadget64/boot.img"
 [ -x "$runtime/bin/rpiboot" ] || { echo 'Bundled rpiboot is not executable.' >&2; exit 1; }
 "$runtime/bin/rpiboot" -V
 for member in 2711/bootcode4.bin 2712/bootcode5.bin; do

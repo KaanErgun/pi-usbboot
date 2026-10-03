@@ -28,6 +28,33 @@ const t = (key: string, vars: Record<string, string> = {}) =>
 
 let running = false;
 let last: Status | null = null;
+let refreshSequence = 0;
+let lastRefresh = 0;
+let diskWaitTimedOut = false;
+let diskWait: {
+  baseline: Set<string>;
+  afterRefresh: number;
+  timer: ReturnType<typeof setTimeout>;
+} | null = null;
+
+function finishDiskWait(disk: Disk | null) {
+  if (!diskWait) return;
+  clearTimeout(diskWait.timer);
+  diskWait = null;
+  diskWaitTimedOut = disk === null;
+  running = false;
+  $("start").textContent = t("action.start");
+  log(t(disk ? "result.disk-found" : "result.disk-timeout", { device: disk?.device ?? "" }));
+  if (last) {
+    render(last);
+  } else if (!disk) {
+    const message = document.createElement("li");
+    message.className = "hint";
+    message.textContent = t("result.disk-timeout");
+    $("disks").replaceChildren(message);
+    setDot("disks-dot", "warn");
+  }
+}
 
 function setDot(id: string, state: "ok" | "warn" | "wait") {
   $(id).className = `dot ${state === "wait" ? "" : state}`;
@@ -83,15 +110,35 @@ function render(s: Status) {
       return li;
     }),
   );
-  setDot("disks-dot", s.disks.length ? "ok" : "wait");
+  if (diskWait || diskWaitTimedOut) {
+    const message = document.createElement("li");
+    message.className = diskWaitTimedOut ? "hint" : "muted";
+    message.textContent = t(diskWait ? "disks.waiting" : "result.disk-timeout");
+    list.prepend(message);
+  }
+  setDot("disks-dot", diskWait ? "wait" : diskWaitTimedOut ? "warn" : s.disks.length ? "ok" : "wait");
 
-  $<HTMLButtonElement>("start").disabled = running || !s.ready;
+  const button = $<HTMLButtonElement>("start");
+  button.disabled = running || !s.ready;
+  button.textContent = t(diskWait ? "action.waiting" : running ? "action.running" : "action.start");
 }
 
 async function refresh() {
+  const request = ++refreshSequence;
   try {
-    render(await invoke<Status>("status"));
+    const status = await invoke<Status>("status");
+    if (request < lastRefresh) return;
+    lastRefresh = request;
+    // Only a fresh post-transfer poll may confirm a newly enumerated disk.
+    // Existing USB disks are unrelated to this attempt and never confirm it.
+    if (diskWait && request > diskWait.afterRefresh) {
+      const disk = status.disks.find((disk) => !diskWait!.baseline.has(disk.device));
+      if (disk) finishDiskWait(disk);
+    }
+    render(status);
   } catch (e) {
+    if (request < lastRefresh) return;
+    lastRefresh = request;
     last = null;
     $<HTMLButtonElement>("imager").disabled = true;
     $<HTMLButtonElement>("start").disabled = true;
@@ -102,18 +149,26 @@ async function refresh() {
 async function start() {
   if (running || !last?.ready) return;
   running = true;
-  const button = $<HTMLButtonElement>("start");
-  button.textContent = t("action.running");
+  diskWaitTimedOut = false;
   if (last) render(last);
   try {
+    // Snapshot immediately before booting, rather than using a possibly stale
+    // UI poll that could miss an unrelated drive connected before the attempt.
+    const before = await invoke<Status>("status");
+    const baseline = new Set(before.disks.map((disk) => disk.device));
     log(await invoke<string>("start_gadget"));
-    log(t("result.ok"));
+    log(t("result.transferred"));
+    diskWait = {
+      baseline,
+      afterRefresh: refreshSequence,
+      timer: setTimeout(() => finishDiskWait(null), 45_000),
+    };
   } catch (e) {
+    running = false;
     const msg = String(e);
     log(strings[`error.${msg}`] ? t(`error.${msg}`) : `${msg}\n${t("result.fail")}`);
   } finally {
-    running = false;
-    button.textContent = t("action.start");
+    if (last) render(last);
     await refresh();
   }
 }

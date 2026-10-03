@@ -32,10 +32,11 @@ flash drive. Classic B-model boards with an onboard USB hub (including Pi 2B,
 Imager with a card reader for an unsupported board's removable storage.
 
 Compatibility is based on [Raspberry Pi's upstream documentation](https://github.com/raspberrypi/usbboot#compatible-devices)
-and the app's boot-file selection tests. Physical-board end-to-end operation across
-these models has not been verified; Linux privilege elevation with a board also
-remains untested. The disk list includes other external USB disks: select the
-intended drive carefully in Imager.
+and the app's boot-file selection tests. On October 3, 2026, the bundled rpiboot
+with the corrected gadget payload exposed a BCM2712 board's 256.1 GB NVMe as a
+USB disk on macOS. Other models, Linux privilege elevation with a board, and OS
+image writing remain untested. The disk list includes other external USB disks:
+select the intended drive carefully in Imager.
 
 ## Download
 
@@ -94,6 +95,12 @@ multiple boot-mode boards are detected.
 4. When the disk appears, open Raspberry Pi Imager and select the correct drive.
 5. If macOS reports that the disk is unreadable, choose **Ignore**, not **Initialize**.
 
+If v0.3.0 finishes transferring `boot.img` but no USB device appears, update to
+v0.3.1. The v0.3.0 gadget image omitted the kernel modules required for USB storage.
+The corrected release pins the complete earlier official gadget payload and
+checks its required drivers during packaging. A successful rpiboot transfer only
+means the boot files reached the board; the app then waits for a new external disk.
+
 The old experimental Force PCIe option was removed in v0.2.0. Its outer config-file
 change was not verified to affect the Linux gadget's inner boot configuration.
 The app now uses its bundled, unmodified boot files; current upstream Pi 5 gadget
@@ -103,7 +110,8 @@ configuration already enables PCIe. See the [upstream gadget configuration](http
 
 Building requires Rust (stable), Node.js, Python 3.12+, a C toolchain, curl, make
 and xxd. These are developer requirements, not end-user dependencies. On Linux also the Tauri system packages
-(`libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev build-essential file`).
+(`libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev build-essential file libarchive-tools`).
+The boot-image audit uses the host's libarchive library; macOS includes it.
 
 ```sh
 npm install
