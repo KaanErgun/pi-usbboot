@@ -4,6 +4,10 @@ A desktop app for macOS and Linux that exposes storage on **RPIBOOT-compatible
 Raspberry Pi boards** as USB disks, ready to flash with Raspberry Pi Imager.
 Previously named CM5 USB Boot.
 
+The app includes rpiboot, its boot files, libusb, and Raspberry Pi Imager.
+Users do not install these tools separately. Selecting an OS from Imager's catalog
+requires an internet connection; a local image can be written offline.
+
 It wraps the official [`rpiboot`](https://github.com/raspberrypi/usbboot) tool:
 
 1. Detects a board waiting in USB device boot mode.
@@ -20,7 +24,7 @@ It wraps the official [`rpiboot`](https://github.com/raspberrypi/usbboot) tool:
 
 The earlier USB identifiers do not uniquely identify a retail model. This app
 conservatively uses legacy MSD for them, including 64-bit boards that can also run
-recent Linux gadgets. The installed rpiboot firmware must support your board.
+recent Linux gadgets. The bundled firmware must support your board.
 
 This is **USB device boot (RPIBOOT)**, which differs from booting a Pi from a USB
 flash drive. Classic B-model boards with an onboard USB hub (including Pi 2B,
@@ -39,23 +43,31 @@ Get the latest build from [Releases](https://github.com/KaanErgun/pi-usbboot/rel
 
 | Platform | File |
 |---|---|
-| macOS 11+ (Apple Silicon and Intel) | `Pi-USB-Boot_<version>_universal.dmg` — Developer ID signed and notarized |
-| Linux x86_64 | `Pi-USB-Boot_<version>_amd64.AppImage` — built and tested on Ubuntu 26.04 |
+| macOS 13+ (Apple Silicon and Intel) | `Pi-USB-Boot_<version>_universal.dmg` — signed and notarized, all tools included |
+| Ubuntu 26.04 desktop x86_64 | `Pi-USB-Boot_<version>_amd64.run` — self-contained installer, no FUSE |
+| Ubuntu / Debian package | `Pi-USB-Boot_<version>_amd64.deb` — desktop installer with OS dependencies declared |
 
-Verify downloads against `SHA256SUMS`. On Linux, `chmod +x` the AppImage; if your distro
-has no FUSE 2 (`libfuse2` / `libfuse2t64`), use `--appimage-extract-and-run`.
-Compatibility with older Linux distributions has not been verified.
+On macOS, open the DMG and drag **Pi USB Boot** into Applications. On Linux, allow
+execution of the `.run` file and launch it (or run `sh Pi-USB-Boot_<version>_amd64.run`).
+It installs into your user data directory and adds Pi USB Boot to the applications
+menu. Installation and both included tools require no additional downloads.
+The `.deb` alternative uses your distribution's package installer to resolve any
+missing base OS libraries automatically. Compatibility with older distributions
+has not been verified.
+
+Verify downloads against `SHA256SUMS`. Source archives are provided for license
+compliance and rebuilding; users do not need them to run the application.
 
 ## Requirements
 
-- A current `rpiboot` installation and the appropriate boot files:
-  - Modern boards: `mass-storage-gadget64` (or its `mass-storage-gadget` alias).
-  - Earlier boards: the `msd` directory containing `bootcode.bin` and `start.elf`.
-  - macOS: `brew install rpiboot`; Debian / Ubuntu: `sudo apt install rpiboot`.
-  - If a package lacks the required files, follow the [upstream build/install instructions](https://github.com/raspberrypi/usbboot#building).
-- [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the OS image.
-- A USB data connection to the board's device/OTG port and sufficient power.
-- On Linux, `pkexec` and a desktop authentication agent.
+- A supported desktop OS, a USB data cable and sufficient board power.
+- Administrator permission for USB access and writing disks. Linux uses the
+  desktop's existing polkit authentication service (`pkexec`); Ubuntu 26.04
+  desktop includes it, and the `.deb` declares it as an installation dependency.
+- An internet connection to download an OS image, or an existing local image.
+- Board-specific preparation below. No Homebrew, compiler, separate rpiboot,
+  libusb, Raspberry Pi Imager, or FUSE installation is needed for the supported
+  desktop environment.
 
 ## Prepare the board
 
@@ -76,28 +88,34 @@ multiple boot-mode boards are detected.
 ## Usage
 
 1. Prepare the board for RPIBOOT, connect its data port, and power it.
-2. Check the detected board and storage mode. If boot files are missing, update
-   the rpiboot installation before continuing.
+2. Check the detected board and storage mode. If bundled files are missing, download
+   and reinstall the complete application package.
 3. Click **Expose disk over USB** and authenticate.
 4. When the disk appears, open Raspberry Pi Imager and select the correct drive.
 5. If macOS reports that the disk is unreadable, choose **Ignore**, not **Initialize**.
 
 The old experimental Force PCIe option was removed in v0.2.0. Its outer config-file
 change was not verified to affect the Linux gadget's inner boot configuration.
-The app now uses the installed, unmodified boot files; current upstream Pi 5 gadget
+The app now uses its bundled, unmodified boot files; current upstream Pi 5 gadget
 configuration already enables PCIe. See the [upstream gadget configuration](https://github.com/raspberrypi/buildroot/blob/mass-storage-gadget64/board/raspberrypi64-mass-storage-gadget/config.txt).
 
 ## Build
 
-Needs Rust (stable) and Node.js. On Linux also the Tauri system packages
+Building requires Rust (stable), Node.js, Python 3.12+, a C toolchain, curl, make
+and xxd. These are developer requirements, not end-user dependencies. On Linux also the Tauri system packages
 (`libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev build-essential file`).
 
 ```sh
 npm install
+npm run prepare:runtime # downloads pinned tools; compiles rpiboot for this host
 ./scripts/check.sh        # typecheck, rustfmt, clippy, unit tests
 npm run bundle:mac        # .app + .dmg      (on macOS)
-npm run bundle:linux      # .AppImage        (on Linux)
+npm run bundle:linux      # .deb + AppImage  (on Linux)
 ```
+
+See [third-party packaging](docs/third-party-packaging.md) for pinned versions,
+source archives, licenses, and the Linux installer build. `--check-runtime` runs a
+read-only bundled-tool check without a display or connected board.
 
 ## Security
 
@@ -117,13 +135,16 @@ credential reaches GitHub, revoke or rotate it before cleaning up history. Local
 hooks must be installed on each clone and can be bypassed; keep GitHub secret
 scanning and push protection enabled as another layer of protection.
 
-`rpiboot` needs root to claim the USB device, so the app asks for your password each time
-you click **Expose disk over USB** and runs exactly the binary shown under **rpiboot**.
-With a Homebrew install that binary lives in a user-writable prefix, so the trust is the
-same as typing `sudo rpiboot` yourself: anything already running as your user could have
-replaced it. Boot files are read from the installed rpiboot package; the app does not
-modify them or change a board's EEPROM/OTP configuration.
+`rpiboot` needs root to claim the USB device. The application runs only its
+bundled binary and boot files; a separate system rpiboot or Imager installation
+cannot silently replace them. macOS requests administrator approval through the
+system prompt; Linux uses polkit. Boot files remain unchanged, and the app does
+not change a board's EEPROM/OTP configuration. Tools in a per-user installation
+have the same trust boundary as other software writable by that user.
 
 ## License
 
-MIT. `rpiboot` and its boot images belong to Raspberry Pi Ltd and are not bundled.
+Pi USB Boot source: MIT. Bundled third-party tools and firmware retain their own
+licenses. Notices are included in `runtime/licenses` inside the application;
+matching source information and archives accompany the release. Raspberry Pi
+Imager keeps its original Raspberry Pi Ltd branding and macOS signature.

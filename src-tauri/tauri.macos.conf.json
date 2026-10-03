@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "files": {
+        "Resources/runtime/imager/Raspberry Pi Imager.app": "resources/runtime/imager/Raspberry Pi Imager.app"
+      }
+    }
+  }
+}

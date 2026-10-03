@@ -1,43 +1,28 @@
-//! Locate a compatible system rpiboot payload and run it with admin rights.
+//! Run the packaged rpiboot and matching boot files with administrator access.
 
 use crate::usb::{BootDevice, BootMode};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// GUI apps on macOS do not inherit the shell PATH.
-const PREFIXES: &[&str] = &["/opt/homebrew", "/usr/local", "/usr"];
-
-pub fn locate_binary(is_file: impl Fn(&Path) -> bool) -> Option<PathBuf> {
-    PREFIXES
-        .iter()
-        .map(|prefix| Path::new(prefix).join("bin/rpiboot"))
-        .find(|path| is_file(path))
+/// Resolve only the packaged binary; a separate system installation is never used.
+pub fn locate_binary(runtime: &Path, is_file: impl Fn(&Path) -> bool) -> Option<PathBuf> {
+    let path = runtime.join("bin/rpiboot");
+    is_file(&path).then_some(path)
 }
 
-/// Check the required boot files, not just the existence of a directory. Older
-/// install prefixes and a binary/payload in different prefixes are supported.
+/// Every release contains both boot families in one private resource directory.
 pub fn locate_payload(
+    runtime: &Path,
     device: &BootDevice,
     is_file: impl Fn(&Path) -> bool,
     archive_has: impl Fn(&Path, &str) -> bool,
 ) -> Option<PathBuf> {
-    let names: &[&str] = match device.mode {
-        BootMode::Legacy => &["msd"],
-        BootMode::Modern => &["mass-storage-gadget64", "mass-storage-gadget"],
+    let name = match device.mode {
+        BootMode::Legacy => "msd",
+        BootMode::Modern => "mass-storage-gadget64",
     };
-    for name in names {
-        for prefix in PREFIXES {
-            // Packaged installs use share/rpiboot; upstream make install also
-            // uses share directly. Prefer the 64-bit gadget before its alias.
-            for share in ["share/rpiboot", "share"] {
-                let path = Path::new(prefix).join(share).join(name);
-                if payload_compatible(&path, device, &is_file, &archive_has) {
-                    return Some(path);
-                }
-            }
-        }
-    }
-    None
+    let path = runtime.join("share/rpiboot").join(name);
+    payload_compatible(&path, device, &is_file, &archive_has).then_some(path)
 }
 
 fn payload_compatible(
@@ -172,114 +157,66 @@ mod tests {
     }
 
     #[test]
-    fn binary_is_found_without_any_payload() {
+    fn binary_requires_bundled_path_and_never_uses_system_installation() {
+        let root = Path::new("/package with spaces/runtime");
         assert_eq!(
-            locate_binary(present(&["/usr/local/bin/rpiboot"])),
-            Some("/usr/local/bin/rpiboot".into())
-        );
-        assert_eq!(locate_binary(|_| false), None);
-    }
-
-    #[test]
-    fn locate_prefers_homebrew_and_mixes_prefixes() {
-        let files = [
-            "/opt/homebrew/bin/rpiboot",
-            "/usr/bin/rpiboot",
-            "/usr/share/rpiboot/mass-storage-gadget64/boot.img",
-            "/usr/share/rpiboot/mass-storage-gadget64/config.txt",
-            "/usr/share/rpiboot/mass-storage-gadget64/bootfiles.bin",
-        ];
-        assert_eq!(
-            locate_binary(present(&files)),
-            Some("/opt/homebrew/bin/rpiboot".into())
+            locate_binary(
+                root,
+                present(&["/usr/local/bin/rpiboot", "/usr/bin/rpiboot"])
+            ),
+            None
         );
         assert_eq!(
-            locate_payload(&board("BCM2712"), present(&files), |_, member| member
-                == "2712/bootcode5.bin"),
-            Some("/usr/share/rpiboot/mass-storage-gadget64".into())
+            locate_binary(root, present(&["/package with spaces/runtime/bin/rpiboot"])),
+            Some(root.join("bin/rpiboot"))
         );
     }
 
     #[test]
-    fn legacy_requires_msd_and_both_firmware_files() {
-        let device = board("BCM283x");
+    fn legacy_requires_both_packaged_firmware_files() {
+        let root = Path::new("/bundle/runtime");
         let files = [
-            "/usr/local/share/msd/bootcode.bin",
-            "/usr/local/share/msd/start.elf",
+            "/bundle/runtime/share/rpiboot/msd/bootcode.bin",
+            "/bundle/runtime/share/rpiboot/msd/start.elf",
         ];
         assert_eq!(
-            locate_payload(&device, present(&files), |_, _| false),
-            Some("/usr/local/share/msd".into())
+            locate_payload(root, &board("BCM283x"), present(&files), |_, _| false),
+            Some(root.join("share/rpiboot/msd"))
         );
-        assert_eq!(
-            locate_payload(&device, present(&files[..1]), |_, _| false),
-            None
+        assert!(
+            locate_payload(root, &board("BCM283x"), present(&files[..1]), |_, _| false).is_none()
         );
-        assert_eq!(
-            locate_payload(&board("BCM2711"), present(&files), |_, _| true),
-            None
-        );
-        let modern_only = [
-            "/usr/local/share/mass-storage-gadget64/boot.img",
-            "/usr/local/share/mass-storage-gadget64/config.txt",
-            "/usr/local/share/mass-storage-gadget64/bootfiles.bin",
-        ];
-        assert_eq!(
-            locate_payload(&device, present(&modern_only), |_, _| true),
-            None
-        );
+        assert!(locate_payload(root, &board("BCM2711"), present(&files), |_, _| true).is_none());
     }
 
     #[test]
-    fn modern_archive_must_include_the_connected_soc() {
+    fn modern_requires_bundled_image_and_matching_soc() {
+        let root = Path::new("/bundle/runtime");
         let files = [
-            "/usr/share/mass-storage-gadget64/boot.img",
-            "/usr/share/mass-storage-gadget64/config.txt",
-            "/usr/share/mass-storage-gadget64/bootfiles.bin",
+            "/bundle/runtime/share/rpiboot/mass-storage-gadget64/boot.img",
+            "/bundle/runtime/share/rpiboot/mass-storage-gadget64/config.txt",
+            "/bundle/runtime/share/rpiboot/mass-storage-gadget64/bootfiles.bin",
         ];
         let cm4_only = |_: &Path, member: &str| member == "2711/bootcode4.bin";
-        assert!(locate_payload(&board("BCM2711"), present(&files), cm4_only).is_some());
-        assert_eq!(
-            locate_payload(&board("BCM2712"), present(&files), cm4_only),
-            None
-        );
-        assert_eq!(
-            locate_payload(&board("BCM2711"), present(&files[1..]), cm4_only),
-            None
-        );
+        assert!(locate_payload(root, &board("BCM2711"), present(&files), cm4_only).is_some());
+        assert!(locate_payload(root, &board("BCM2712"), present(&files), cm4_only).is_none());
+        assert!(locate_payload(root, &board("BCM2711"), present(&files[1..]), cm4_only).is_none());
+        assert!(locate_payload(root, &board("BCM283x"), present(&files), cm4_only).is_none());
     }
 
     #[test]
-    fn modern_accepts_unpacked_alias_for_its_soc_only() {
+    fn system_payload_does_not_mask_a_broken_package() {
         let files = [
-            "/opt/homebrew/share/rpiboot/mass-storage-gadget/boot.img",
-            "/opt/homebrew/share/rpiboot/mass-storage-gadget/config.txt",
-            "/opt/homebrew/share/rpiboot/mass-storage-gadget/2712/bootcode5.bin",
+            "/usr/share/rpiboot/msd/bootcode.bin",
+            "/usr/share/rpiboot/msd/start.elf",
         ];
-        assert_eq!(
-            locate_payload(&board("BCM2712"), present(&files), |_, _| false),
-            Some("/opt/homebrew/share/rpiboot/mass-storage-gadget".into())
-        );
-        assert_eq!(
-            locate_payload(&board("BCM2711"), present(&files), |_, _| false),
-            None
-        );
-    }
-
-    #[test]
-    fn modern_prefers_gadget64_to_alias_across_prefixes() {
-        let files = [
-            "/opt/homebrew/share/mass-storage-gadget/boot.img",
-            "/opt/homebrew/share/mass-storage-gadget/config.txt",
-            "/opt/homebrew/share/mass-storage-gadget/bootcode4.bin",
-            "/usr/share/mass-storage-gadget64/boot.img",
-            "/usr/share/mass-storage-gadget64/config.txt",
-            "/usr/share/mass-storage-gadget64/bootcode4.bin",
-        ];
-        assert_eq!(
-            locate_payload(&board("BCM2711"), present(&files), |_, _| false),
-            Some("/usr/share/mass-storage-gadget64".into())
-        );
+        assert!(locate_payload(
+            Path::new("/bundle/runtime"),
+            &board("BCM283x"),
+            present(&files),
+            |_, _| false
+        )
+        .is_none());
     }
 
     #[test]

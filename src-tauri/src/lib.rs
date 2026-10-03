@@ -1,10 +1,10 @@
 mod disks;
 mod rpiboot;
+mod runtime;
 mod usb;
 
 use serde::Serialize;
 use std::path::Path;
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static GADGET_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -29,8 +29,9 @@ impl Drop for RunGuard {
 #[derive(Serialize)]
 struct Status {
     device: Option<usb::BootDevice>,
-    /// The binary is located independently of any board-specific boot files.
+    /// This path always points inside the installed application.
     rpiboot: Option<String>,
+    imager_ready: bool,
     boot_files: Option<String>,
     boot_error: Option<String>,
     ready: bool,
@@ -39,15 +40,20 @@ struct Status {
 }
 
 #[tauri::command]
-fn status() -> Status {
+fn status(app: tauri::AppHandle) -> Status {
+    let runtime = runtime::root(&app).ok();
     let (device, usb_error) = match usb::find() {
         Ok(d) => (d, None),
         Err(e) => (None, Some(e)),
     };
-    let binary = rpiboot::locate_binary(Path::is_file);
-    let payload = device
-        .as_ref()
-        .and_then(|d| rpiboot::locate_payload(d, Path::is_file, rpiboot::archive_has));
+    let binary = runtime
+        .as_deref()
+        .and_then(|root| rpiboot::locate_binary(root, Path::is_file));
+    let payload = device.as_ref().and_then(|d| {
+        runtime
+            .as_deref()
+            .and_then(|root| rpiboot::locate_payload(root, d, Path::is_file, rpiboot::archive_has))
+    });
     let boot_error = if GADGET_RUNNING.load(Ordering::Acquire) {
         Some("busy")
     } else if binary.is_none() {
@@ -65,6 +71,7 @@ fn status() -> Status {
     let ready = boot_error.is_none() && usb_error.is_none() && payload.is_some();
     Status {
         device,
+        imager_ready: runtime.as_deref().is_some_and(runtime::imager_ready),
         rpiboot: binary.map(|p| p.display().to_string()),
         boot_files: payload.map(|p| p.display().to_string()),
         boot_error: boot_error.map(str::to_owned),
@@ -76,17 +83,19 @@ fn status() -> Status {
 
 /// Errors are either a stable code the UI translates ("rpiboot-missing") or raw rpiboot output.
 #[tauri::command]
-async fn start_gadget(force_pcie: Option<bool>) -> Result<String, String> {
+async fn start_gadget(app: tauri::AppHandle, force_pcie: Option<bool>) -> Result<String, String> {
     rpiboot::validate_options(force_pcie)?;
+    let runtime = runtime::root(&app)?;
     let guard = RunGuard::acquire()?;
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = guard;
         // Re-detect immediately before preparing the privileged command; the
         // board shown by the last UI poll may already have been disconnected.
         let device = usb::find()?.ok_or("device-missing")?;
-        let binary = rpiboot::locate_binary(Path::is_file).ok_or("rpiboot-missing")?;
-        let payload = rpiboot::locate_payload(&device, Path::is_file, rpiboot::archive_has)
-            .ok_or_else(|| rpiboot::missing_payload_error(device.mode))?;
+        let binary = rpiboot::locate_binary(&runtime, Path::is_file).ok_or("rpiboot-missing")?;
+        let payload =
+            rpiboot::locate_payload(&runtime, &device, Path::is_file, rpiboot::archive_has)
+                .ok_or_else(|| rpiboot::missing_payload_error(device.mode))?;
         rpiboot::run(&binary, &payload)
     })
     .await
@@ -107,21 +116,22 @@ mod tests {
 }
 
 #[tauri::command]
-fn open_imager() -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    let mut cmd = {
-        let mut c = Command::new("/usr/bin/open");
-        c.args(["-a", "Raspberry Pi Imager"]);
-        c
-    };
-    #[cfg(not(target_os = "macos"))]
-    let mut cmd = Command::new("rpi-imager");
-    cmd.spawn().map(drop).map_err(|_| "imager-missing".into())
+fn open_imager(app: tauri::AppHandle) -> Result<(), String> {
+    runtime::open_imager(&runtime::root(&app)?)
 }
 
 pub fn run() {
+    let context = tauri::generate_context!();
+    if std::env::args().any(|arg| arg == "--check-runtime") {
+        let resources =
+            tauri::utils::platform::resource_dir(context.package_info(), &tauri::Env::default());
+        let complete = resources
+            .map(|path| runtime::check(&path.join("runtime")))
+            .unwrap_or(false);
+        std::process::exit(if complete { 0 } else { 1 });
+    }
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![status, start_gadget, open_imager])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }

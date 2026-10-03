@@ -1,8 +1,12 @@
 # Dependencies and generated files. Keep package-lock.json and Cargo.lock tracked.
 node_modules/
+__pycache__/
+*.pyc
 /target/
 /src-tauri/target/
 /src-tauri/gen/
+# Prepared third-party runtimes are bundled as release assets, never committed.
+/src-tauri/resources/runtime/
 /dist/
 /coverage/
 /.cache/
@@ -14,12 +18,15 @@ node_modules/
 *.app/
 *.dmg
 *.AppImage
+*.run
 *.deb
 *.rpm
 *.msi
 *.zip
 *.tar
 *.tar.gz
+*.tar.xz
+*.tar.bz2
 *.tgz
 *.7z
 *.rar

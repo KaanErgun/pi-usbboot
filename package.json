@@ -10,8 +10,9 @@
     "test:secrets": "./scripts/test-secret-guards.sh",
     "setup:hooks": "./scripts/install-git-hooks.sh",
     "dev": "tauri dev",
-    "bundle:mac": "tauri build --target universal-apple-darwin --bundles app,dmg",
-    "bundle:linux": "tauri build --bundles appimage"
+    "bundle:mac": "./scripts/bundle-macos.sh",
+    "bundle:linux": "./scripts/bundle-linux.sh",
+    "prepare:runtime": "./scripts/prepare-rpiboot.sh && ./scripts/prepare-imager.sh"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

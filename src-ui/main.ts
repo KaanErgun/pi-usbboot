@@ -2,6 +2,7 @@ type Disk = { device: string; size: string; name: string; kind: "nvme" | "mmc" |
 type Status = {
   device: { chip: string; product: string | null; mode: "legacy" | "modern" } | null;
   rpiboot: string | null;
+  imager_ready: boolean;
   boot_files: string | null;
   boot_error: string | null;
   ready: boolean;
@@ -20,7 +21,6 @@ declare global {
 
 const { invoke } = window.__TAURI__.core;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const isMac = navigator.userAgent.includes("Mac");
 
 let strings: Record<string, string> = {};
 const t = (key: string, vars: Record<string, string> = {}) =>
@@ -50,22 +50,20 @@ function render(s: Status) {
       : t("device.waiting");
   $("device-help").hidden = !!device;
 
-  setDot("rpiboot-dot", s.rpiboot ? "ok" : "warn");
-  $("rpiboot-text").textContent = s.rpiboot ? t("rpiboot.found", { path: s.rpiboot }) : t("rpiboot.missing");
-  const install = $("rpiboot-install");
-  install.hidden = !!s.rpiboot;
-  install.textContent = t(isMac ? "rpiboot.install.mac" : "rpiboot.install.linux");
+  setDot("rpiboot-dot", s.rpiboot && s.imager_ready ? "ok" : "warn");
+  $("rpiboot-text").textContent = s.rpiboot && s.imager_ready ? t("rpiboot.found") : t("rpiboot.missing");
+  $<HTMLButtonElement>("imager").disabled = !s.imager_ready;
 
   $("mode-text").textContent = t(device ? `mode.${device.mode}` : "mode.waiting");
   const bootError = s.boot_error && s.boot_error !== "device-missing" && s.boot_error !== "rpiboot-missing"
     ? s.boot_error
     : null;
-  setDot("boot-dot", bootError ? "warn" : s.boot_files ? "ok" : "wait");
+  setDot("boot-dot", bootError === "busy" ? "wait" : bootError ? "warn" : s.boot_files ? "ok" : "wait");
   $("boot-text").textContent = bootError
     ? t(`error.${bootError}`)
     : s.boot_files ? t("boot.ready") : t("boot.waiting");
   $("boot-text").hidden = !device && !bootError;
-  $("boot-help").hidden = !bootError;
+  $("boot-help").hidden = bootError !== "legacy-boot-files-missing" && bootError !== "modern-boot-files-missing";
 
   const list = $("disks");
   list.replaceChildren(
@@ -95,6 +93,7 @@ async function refresh() {
     render(await invoke<Status>("status"));
   } catch (e) {
     last = null;
+    $<HTMLButtonElement>("imager").disabled = true;
     $<HTMLButtonElement>("start").disabled = true;
     log(String(e));
   }

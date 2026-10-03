@@ -89,3 +89,38 @@ Gatekeeper, and regenerate checksums after stapling.
 - Physical-board end-to-end operation and Linux privilege elevation with a board
   remain unverified. Payload checks validate starting files, not every firmware
   component or board-specific behavior.
+
+## 2026-10-03 — Pi USB Boot 0.3.0 self-contained packages
+
+- Bundled pinned rpiboot, static libusb, legacy MSD, Linux gadget firmware and
+  official Raspberry Pi Imager. Runtime discovery uses only application resources.
+- macOS includes universal executables and requires macOS 13 due to Imager's Qt
+  deployment target. The nested Imager retains its original Raspberry Pi signature.
+- Linux packages isolate the official Imager in a verified local archive to avoid
+  GTK/Qt library collisions during packaging. Its wrapper extracts into a stable
+  per-user cache without FUSE or downloads; Imager can outlive the main window.
+- Added a per-user `.run` installer, desktop-menu entry, `.deb` dependencies, build
+  preflight checks, and a display-free `--check-runtime` diagnostic.
+- TypeScript, clippy, formatting and 15 Rust tests passed on macOS and Linux.
+  English/Turkish browser checks passed 28 assertions at 560x680. Installer/wrapper
+  fixtures verified first extraction, repeat launch, spaces, argument preservation,
+  environment isolation and corruption rejection.
+- macOS notarization submission `08a7c21d-7ecf-4b41-ad11-8a0d93cf97c6` was Accepted.
+  Stapling and Gatekeeper verification passed. The final app and the user's
+  `/Applications/Pi USB Boot.app` both passed bundle diagnostics and signature checks.
+- A user-reported macOS “Could not install” dialog was investigated. Installed main
+  and Imager processes were running; no corresponding crash report was found. The
+  precise trigger was not reproduced. Do not describe that report as a proven fix.
+- Matching third-party source assets/notices accompany the release. The gadget
+  kernel source revision is inferred from the embedded build date, explicitly
+  documented in the provenance manifest; bit-identical reconstruction is not claimed.
+- Physical USB boot/image-writing end-to-end tests remain unperformed.
+
+- Native macOS inspection confirmed a visible, fully rendered 0.3.0 window with
+  bundled tools ready; thread sampling showed normal WebKit/backend polling. The
+  earlier installation alert remains unattributed rather than claimed fixed.
+- Linux AppImage packaging initially reused a stale `appimage_deb` staging tree
+  containing old Qt libraries. Cleaning both generated staging trees fixed it;
+  `bundle-linux.sh` now performs that cleanup before every build. Final AppDir and
+  installed `.run` diagnostics pass for all three boot families; first launch and
+  repeat launch in isolated, space-containing XDG directories both passed.

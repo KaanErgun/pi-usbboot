@@ -1,0 +1,14 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/runtime/imager-bundle/": "runtime/imager/"
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "pkexec"
+        ]
+      }
+    }
+  }
+}

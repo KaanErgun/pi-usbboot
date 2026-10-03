@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../ui",
     "beforeDevCommand": "npm run build:ui",
-    "beforeBuildCommand": "npm run build:ui"
+    "beforeBuildCommand": "npm run build:ui && ./scripts/check-runtime.sh"
   },
   "app": {
     "withGlobalTauri": true,
@@ -36,6 +36,11 @@
       "icons/128x128@2x.png",
       "icons/icon.png",
       "icons/icon.icns"
-    ]
+    ],
+    "resources": {
+      "resources/runtime/bin/": "runtime/bin/",
+      "resources/runtime/share/": "runtime/share/",
+      "resources/runtime/licenses/": "runtime/licenses/"
+    }
   }
 }
