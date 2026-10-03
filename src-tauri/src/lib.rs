@@ -34,12 +34,13 @@ fn status() -> Status {
 async fn start_gadget(force_pcie: bool) -> Result<String, String> {
     let install = rpiboot::locate(Path::exists).ok_or("rpiboot-missing")?;
     tauri::async_runtime::spawn_blocking(move || {
-        let gadget = if force_pcie {
-            rpiboot::gadget_with_pcie(&install.gadget)?
-        } else {
-            install.gadget
-        };
-        rpiboot::run(&install.binary, &gadget)
+        if !force_pcie {
+            return rpiboot::run(&install.binary, &install.gadget);
+        }
+        let gadget = rpiboot::gadget_with_pcie(&install.gadget)?;
+        let result = rpiboot::run(&install.binary, &gadget);
+        let _ = std::fs::remove_dir_all(&gadget);
+        result
     })
     .await
     .map_err(|e| e.to_string())?

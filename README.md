@@ -20,6 +20,18 @@ this option runs a temporary copy of the gadget with `dtparam=pciex1` added to i
 `config.txt`. It has not been confirmed to fix missing-NVMe cases yet; the system
 `rpiboot` install is never modified.
 
+## Download
+
+Grab the latest build from [Releases](https://github.com/KaanErgun/cm5-usbboot/releases):
+
+| Platform | File |
+|---|---|
+| macOS 11+ (Apple Silicon and Intel) | `CM5-USB-Boot_<version>_universal.dmg` — signed with a Developer ID and notarized |
+| Linux x86_64 | `CM5-USB-Boot_<version>_amd64.AppImage` |
+
+Verify downloads against `SHA256SUMS`. On Linux, `chmod +x` the AppImage; if your distro has
+no FUSE 2 (`libfuse2` / `libfuse2t64`), run it with `--appimage-extract-and-run`.
+
 ## Requirements
 
 - `rpiboot` with its `mass-storage-gadget64` directory:
@@ -47,6 +59,15 @@ npm install
 npm run bundle:mac        # .app + .dmg      (on macOS)
 npm run bundle:linux      # .AppImage        (on Linux)
 ```
+
+## Security
+
+`rpiboot` needs root to claim the USB device, so the app asks for your password each time
+you click **Expose disk over USB** and runs exactly the binary shown under **rpiboot**.
+With a Homebrew install that binary lives in a user-writable prefix, so the trust is the
+same as typing `sudo rpiboot` yourself: anything already running as your user could have
+replaced it. The experimental PCIe option copies the gadget into a fresh `0700` temp
+directory and deletes it afterwards.
 
 ## License
 

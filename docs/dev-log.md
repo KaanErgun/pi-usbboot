@@ -22,8 +22,18 @@ pencerelik bir araç istendi (Kaan).
 - İlk derlemede arayüz boş açıldı: CSP `connect-src` `'self'` içermiyordu, çeviri dosyaları
   yüklenemedi. Düzeltildi.
 
+**Yayın hazırlığı (aynı gün):**
+- Güvenlik incelemesi: "PCIe'yi zorla" sabit `$TMPDIR/cm5-usbboot-gadget` yoluna yazıyordu →
+  her seferinde yeni `0700` dizin, iş bitince siliniyor; test eklendi (10 test).
+  Homebrew rpiboot'un kullanıcı yazabilir yolda olması bilinçli kabul edildi, README "Security".
+- Arayüze sürüm (`v0.1.0`) eklendi.
+- macOS: universal (`x86_64 arm64`), Developer ID imzalı, hardened runtime;
+  `CM5-USB-Boot_0.1.0_universal.dmg` (5.8 MiB). Notarization bekliyor (kimlik bilgisi yok).
+- Linux: ros (Ubuntu 26.04 x86_64) üzerinde gate exit 0 (10 test), `CM5-USB-Boot_0.1.0_amd64.AppImage`
+  (82.5 MiB). Xvfb + openbox'ta açıldı: `docs/screenshots/2026-10-03-linux-appimage.png`.
+
 **Doğrulanmayan:**
 - Gerçek kartla uçtan uca akış (algılama → rpiboot → disk) henüz uygulamayla denenmedi;
   ikinci CM5 (netsay-ros-001, CM5 Lite) ile denenecek.
 - "PCIe'yi zorla" seçeneğinin NVMe'yi gösterip göstermediği.
-- Linux AppImage.
+- Linux'ta `pkexec` ile rpiboot çalıştırma (ros'ta rpiboot ve kart yok).

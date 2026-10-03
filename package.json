@@ -7,7 +7,7 @@
     "build:ui": "tsc -p .",
     "check": "./scripts/check.sh",
     "dev": "tauri dev",
-    "bundle:mac": "tauri build --bundles app,dmg",
+    "bundle:mac": "tauri build --target universal-apple-darwin --bundles app,dmg",
     "bundle:linux": "tauri build --bundles appimage"
   },
   "devDependencies": {

@@ -28,9 +28,9 @@ pub fn locate(exists: impl Fn(&Path) -> bool) -> Option<Install> {
 
 /// Copy the gadget into a temp dir with `dtparam=pciex1` appended to config.txt.
 /// Experimental: meant for boards whose NVMe does not show up with the stock gadget.
+/// The caller removes the directory after rpiboot has run.
 pub fn gadget_with_pcie(stock: &Path) -> Result<PathBuf, String> {
-    let dir = std::env::temp_dir().join("cm5-usbboot-gadget");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let dir = private_temp_dir().map_err(|e| e.to_string())?;
     for entry in std::fs::read_dir(stock).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         std::fs::copy(entry.path(), dir.join(entry.file_name())).map_err(|e| e.to_string())?;
@@ -39,6 +39,30 @@ pub fn gadget_with_pcie(stock: &Path) -> Result<PathBuf, String> {
     let stock_config = std::fs::read_to_string(&config).map_err(|e| e.to_string())?;
     std::fs::write(&config, with_pcie(&stock_config)).map_err(|e| e.to_string())?;
     Ok(dir)
+}
+
+/// rpiboot reads this directory as root, so it must be fresh and private: a fixed name
+/// under a shared /tmp could be pre-created by another user with their own boot files.
+fn private_temp_dir() -> std::io::Result<PathBuf> {
+    use std::os::unix::fs::DirBuilderExt;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let mut last_err = None;
+    for attempt in 0..8u32 {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or_default();
+        let dir = std::env::temp_dir().join(format!(
+            "cm5-usbboot-{}-{nanos:x}-{attempt}",
+            std::process::id()
+        ));
+        // `create` (not `create_dir_all`) fails if the path already exists, symlinks included.
+        match std::fs::DirBuilder::new().mode(0o700).create(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(e) => last_err = Some(e),
+        }
+    }
+    Err(last_err.expect("loop ran at least once"))
 }
 
 fn with_pcie(config: &str) -> String {
@@ -125,6 +149,18 @@ mod tests {
             out,
             "boot_ramdisk=1\nuart_2ndstage=1\n[all]\ndtparam=pciex1\n"
         );
+    }
+
+    #[test]
+    fn temp_dirs_are_fresh_and_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let a = private_temp_dir().unwrap();
+        let b = private_temp_dir().unwrap();
+        assert_ne!(a, b);
+        let mode = std::fs::metadata(&a).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o700);
+        std::fs::remove_dir(a).unwrap();
+        std::fs::remove_dir(b).unwrap();
     }
 
     #[test]

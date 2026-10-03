@@ -8,7 +8,10 @@ type Status = {
 
 declare global {
   interface Window {
-    __TAURI__: { core: { invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> } };
+    __TAURI__: {
+      core: { invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> };
+      app: { getVersion(): Promise<string> };
+    };
   }
 }
 
@@ -117,6 +120,7 @@ async function main() {
     el.textContent = t(el.dataset.i18n!);
   });
   $("log").textContent = t("log.empty");
+  $("version").textContent = `v${await window.__TAURI__.app.getVersion()}`;
   $("start").addEventListener("click", start);
   $("imager").addEventListener("click", openImager);
   await refresh();
