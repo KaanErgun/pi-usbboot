@@ -1,0 +1,53 @@
+# CM5 USB Boot
+
+A small desktop app (macOS and Linux) that exposes a Raspberry Pi Compute Module's
+eMMC or NVMe to your computer as a USB disk, so you can flash it with
+Raspberry Pi Imager — no command line.
+
+![CM5 USB Boot on macOS](docs/screenshots/2026-10-03-macos-waiting.jpg)
+
+It wraps the official [`rpiboot`](https://github.com/raspberrypi/usbboot) tool and its
+`mass-storage-gadget64` image:
+
+1. Detects a board sitting in its USB boot ROM (BCM2711 / BCM2712, USB vendor `0a5c`).
+2. Runs `rpiboot -d mass-storage-gadget64` with admin rights
+   (macOS password dialog, `pkexec` on Linux).
+3. Shows the disks that appear and labels them **NVMe** or **eMMC / SD**.
+4. Opens Raspberry Pi Imager.
+
+**Force PCIe (experimental):** if only eMMC / SD shows up on a board with an NVMe drive,
+this option runs a temporary copy of the gadget with `dtparam=pciex1` added to its
+`config.txt`. It has not been confirmed to fix missing-NVMe cases yet; the system
+`rpiboot` install is never modified.
+
+## Requirements
+
+- `rpiboot` with its `mass-storage-gadget64` directory:
+  - macOS: `brew install rpiboot`
+  - Debian / Ubuntu: `sudo apt install rpiboot`
+- [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the image.
+- A Compute Module 4 / 5 carrier with the nRPIBOOT jumper (or button) and a USB-C
+  data connection to the computer.
+
+## Usage
+
+1. Fit the nRPIBOOT jumper, connect the carrier's USB-C port to the computer, power it.
+2. Wait for **Board: Detected**, then click **Expose disk over USB** and authenticate.
+3. When the disk appears, click **Open Raspberry Pi Imager** and write your OS to it.
+4. If macOS says the disk is not readable, choose **Ignore** — never **Initialize**.
+
+## Build
+
+Needs Rust (stable) and Node.js. On Linux also the Tauri system packages
+(`libwebkit2gtk-4.1-dev librsvg2-dev patchelf libssl-dev build-essential file`).
+
+```sh
+npm install
+./scripts/check.sh        # typecheck, rustfmt, clippy, unit tests
+npm run bundle:mac        # .app + .dmg      (on macOS)
+npm run bundle:linux      # .AppImage        (on Linux)
+```
+
+## License
+
+MIT. `rpiboot` and the mass-storage gadget belong to Raspberry Pi Ltd and are not bundled.

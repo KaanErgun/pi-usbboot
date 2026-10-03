@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CM5 USB Boot",
+  "version": "0.1.0",
+  "identifier": "com.kaanergun.cm5usbboot",
+  "build": {
+    "frontendDist": "../ui",
+    "beforeDevCommand": "npm run build:ui",
+    "beforeBuildCommand": "npm run build:ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      { "label": "main", "title": "CM5 USB Boot", "width": 560, "height": 680, "minWidth": 440, "minHeight": 520 }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Expose a Raspberry Pi Compute Module's storage over USB",
+    "copyright": "Copyright (c) 2026 Kaan Ergun",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png", "icons/icon.icns"]
+  }
+}

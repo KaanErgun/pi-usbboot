@@ -1,0 +1,17 @@
+{
+  "name": "cm5-usbboot",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build:ui": "tsc -p .",
+    "check": "./scripts/check.sh",
+    "dev": "tauri dev",
+    "bundle:mac": "tauri build --bundles app,dmg",
+    "bundle:linux": "tauri build --bundles appimage"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "typescript": "^5"
+  }
+}
