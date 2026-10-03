@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Pi USB Boot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.kaanergun.cm5usbboot",
   "build": {
     "frontendDist": "../ui",
@@ -11,7 +11,14 @@
   "app": {
     "withGlobalTauri": true,
     "windows": [
-      { "label": "main", "title": "Pi USB Boot", "width": 560, "height": 680, "minWidth": 440, "minHeight": 520 }
+      {
+        "label": "main",
+        "title": "Pi USB Boot",
+        "width": 560,
+        "height": 680,
+        "minWidth": 440,
+        "minHeight": 520
+      }
     ],
     "security": {
       "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' data:"
@@ -23,6 +30,12 @@
     "category": "DeveloperTool",
     "shortDescription": "Expose storage on RPIBOOT-compatible Raspberry Pi boards over USB",
     "copyright": "Copyright (c) 2026 Kaan Ergun",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.png", "icons/icon.icns"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.icns"
+    ]
   }
 }
