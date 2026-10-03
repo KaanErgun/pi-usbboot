@@ -62,6 +62,22 @@ npm run bundle:linux      # .AppImage        (on Linux)
 
 ## Security
 
+Before contributing, install [Gitleaks](https://github.com/gitleaks/gitleaks) 8.30.1 or newer
+(`brew install gitleaks` on macOS) and run `npm run setup:hooks` once per clone.
+The local pre-commit hook scans staged changes and blocks files covered by this
+project's `.gitignore`, including files added with `git add -f`. The pre-push hook
+also scans Git history, including sensitive files removed in later commits. Both
+hooks stop if Gitleaks is missing, and scanner output redacts secret values.
+Run `npm run check:secrets` for a history scan and `npm run test:secrets` to verify
+the guards using synthetic data in temporary repositories.
+
+Keep `.p8` signing keys, Keychain exports, `.env` files, and assistant transcripts
+outside Git. Only placeholder values belong in `.env.example`, `.env.sample`, or
+`.env.template`. A `.gitignore` rule does not remove files already committed; if a
+credential reaches GitHub, revoke or rotate it before cleaning up history. Local
+hooks must be installed on each clone and can be bypassed; keep GitHub secret
+scanning and push protection enabled as another layer of protection.
+
 `rpiboot` needs root to claim the USB device, so the app asks for your password each time
 you click **Expose disk over USB** and runs exactly the binary shown under **rpiboot**.
 With a Homebrew install that binary lives in a user-writable prefix, so the trust is the

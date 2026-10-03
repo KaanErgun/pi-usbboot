@@ -6,6 +6,9 @@
   "scripts": {
     "build:ui": "tsc -p .",
     "check": "./scripts/check.sh",
+    "check:secrets": "./scripts/check-secrets.sh history",
+    "test:secrets": "./scripts/test-secret-guards.sh",
+    "setup:hooks": "./scripts/install-git-hooks.sh",
     "dev": "tauri dev",
     "bundle:mac": "tauri build --target universal-apple-darwin --bundles app,dmg",
     "bundle:linux": "tauri build --bundles appimage"

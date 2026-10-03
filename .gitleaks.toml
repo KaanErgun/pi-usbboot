@@ -1,0 +1,9 @@
+title = "CM5 USB Boot secret detection"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "apple-app-specific-password"
+description = "Apple app-specific password, including unlabelled conversation text"
+regex = '''\b[a-z]{4}(?:-[a-z]{4}){3}\b'''
