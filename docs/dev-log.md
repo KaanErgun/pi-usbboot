@@ -28,7 +28,8 @@ pencerelik bir araç istendi (Kaan).
   Homebrew rpiboot'un kullanıcı yazabilir yolda olması bilinçli kabul edildi, README "Security".
 - Arayüze sürüm (`v0.1.0`) eklendi.
 - macOS: universal (`x86_64 arm64`), Developer ID imzalı, hardened runtime;
-  `CM5-USB-Boot_0.1.0_universal.dmg` (5.8 MiB). Notarization bekliyor (kimlik bilgisi yok).
+  `CM5-USB-Boot_0.1.0_universal.dmg` (5.8 MiB). Notarization kabul edildi; DMG bileti
+  doğrulandı ve Gatekeeper kontrolü geçti (`Notarized Developer ID`).
 - Linux: ros (Ubuntu 26.04 x86_64) üzerinde gate exit 0 (10 test), `CM5-USB-Boot_0.1.0_amd64.AppImage`
   (82.5 MiB). Xvfb + openbox'ta açıldı: `docs/screenshots/2026-10-03-linux-appimage.png`.
 
@@ -37,3 +38,32 @@ pencerelik bir araç istendi (Kaan).
   ikinci CM5 (netsay-ros-001, CM5 Lite) ile denenecek.
 - "PCIe'yi zorla" seçeneğinin NVMe'yi gösterip göstermediği.
 - Linux'ta `pkexec` ile rpiboot çalıştırma (ros'ta rpiboot ve kart yok).
+
+### Notarization completed
+
+- App-specific-password authentication initially returned HTTP 403:
+  "A required agreement is missing or has expired." Switching to the supplied
+  App Store Connect team API key validated successfully and saved the
+  `cm5-usbboot` Keychain profile. The earlier error's underlying cause was not
+  established; API-key authentication succeeded without further account changes
+  by this agent.
+- Submission `3aa57ddd-781c-46e0-8ccd-59f0e98d638c`, created on 2026-10-03 at
+  20:00 Istanbul time, was already present in Apple's history. Its final status
+  is `Accepted`, with `Ready for distribution` and no reported issues. No duplicate
+  submission was created. The downloaded report is in the ignored local file
+  `release/notarization-0.1.0.json`.
+- The DMG already had its ticket attached when checked. `stapler validate` passed;
+  both the DMG and universal application passed Gatekeeper with
+  `source=Notarized Developer ID`. DMG signature verification also passed.
+- The report's code-signing digest matches the release DMG. The archive SHA-256
+  in Apple's report describes the uploaded file; the distributed DMG has a
+  different SHA-256 after stapling.
+- `release/SHA256SUMS` covers the final stapled DMG and Linux AppImage. Both
+  checksums pass. The README now reflects the verified notarization status.
+- `./scripts/check.sh` passed earlier in this session: TypeScript, rustfmt, clippy,
+  and all 10 Rust tests. No application source changed during notarization.
+
+For subsequent submissions, use `--keychain-profile cm5-usbboot`. Keep the API
+private key outside the repository. Record each submission ID and query it if
+interrupted; staple only after `Accepted`, verify with `stapler validate` and
+Gatekeeper, and regenerate checksums after stapling.
