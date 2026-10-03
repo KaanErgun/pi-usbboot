@@ -5,7 +5,7 @@ source_root=$(cd "$(dirname "$0")/.." && pwd)
 for required in git gitleaks openssl; do
   command -v "$required" >/dev/null 2>&1 || { printf 'Missing test dependency: %s\n' "$required" >&2; exit 1; }
 done
-test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/cm5-secret-tests.XXXXXX")
+test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/pi-secret-tests.XXXXXX")
 trap 'rm -rf "$test_tmp"' EXIT
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR

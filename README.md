@@ -1,52 +1,91 @@
-# CM5 USB Boot
+# Pi USB Boot
 
-A small desktop app (macOS and Linux) that exposes a Raspberry Pi Compute Module's
-eMMC or NVMe to your computer as a USB disk, so you can flash it with
-Raspberry Pi Imager — no command line.
+A desktop app for macOS and Linux that exposes storage on **RPIBOOT-compatible
+Raspberry Pi boards** as USB disks, ready to flash with Raspberry Pi Imager.
+Previously named CM5 USB Boot.
 
-![CM5 USB Boot on macOS](docs/screenshots/2026-10-03-macos-waiting.jpg)
+It wraps the official [`rpiboot`](https://github.com/raspberrypi/usbboot) tool:
 
-It wraps the official [`rpiboot`](https://github.com/raspberrypi/usbboot) tool and its
-`mass-storage-gadget64` image:
+1. Detects a board waiting in USB device boot mode.
+2. Chooses the storage boot files for the detected USB boot family.
+3. Runs rpiboot with administrator access and lists external USB disks.
+4. Opens Raspberry Pi Imager to write an OS image.
 
-1. Detects a board sitting in its USB boot ROM (BCM2711 / BCM2712, USB vendor `0a5c`).
-2. Runs `rpiboot -d mass-storage-gadget64` with admin rights
-   (macOS password dialog, `pkexec` on Linux).
-3. Shows the disks that appear and labels them **NVMe** or **eMMC / SD**.
-4. Opens Raspberry Pi Imager.
+## Compatible boards
 
-**Force PCIe (experimental):** if only eMMC / SD shows up on a board with an NVMe drive,
-this option runs a temporary copy of the gadget with `dtparam=pciex1` added to its
-`config.txt`. It has not been confirmed to fix missing-NVMe cases yet; the system
-`rpiboot` install is never modified.
+| Family | Boards with RPIBOOT support | Storage mode selected by this app |
+|---|---|---|
+| BCM2711 / BCM2712 | CM4, CM4S, CM5; Pi 4B, Pi 400, Pi 5, Pi 500, Pi 500+ | Linux mass-storage gadget: SD / eMMC, NVMe and other supported block devices |
+| Earlier boot families | CM1, CM3, CM3+, CM3E; Pi 1A+, Pi 3A+, Zero / Zero W, Zero 2 W | Legacy MSD firmware: SD / eMMC |
+
+The earlier USB identifiers do not uniquely identify a retail model. This app
+conservatively uses legacy MSD for them, including 64-bit boards that can also run
+recent Linux gadgets. The installed rpiboot firmware must support your board.
+
+This is **USB device boot (RPIBOOT)**, which differs from booting a Pi from a USB
+flash drive. Classic B-model boards with an onboard USB hub (including Pi 2B,
+3B and 3B+) and Pico microcontrollers are outside this workflow. Use Raspberry Pi
+Imager with a card reader for an unsupported board's removable storage.
+
+Compatibility is based on [Raspberry Pi's upstream documentation](https://github.com/raspberrypi/usbboot#compatible-devices)
+and the app's boot-file selection tests. Physical-board end-to-end operation across
+these models has not been verified; Linux privilege elevation with a board also
+remains untested. The disk list includes other external USB disks: select the
+intended drive carefully in Imager.
 
 ## Download
 
-Grab the latest build from [Releases](https://github.com/KaanErgun/cm5-usbboot/releases):
+Get the latest build from [Releases](https://github.com/KaanErgun/pi-usbboot/releases):
 
 | Platform | File |
 |---|---|
-| macOS 11+ (Apple Silicon and Intel) | `CM5-USB-Boot_<version>_universal.dmg` — signed with a Developer ID and notarized |
-| Linux x86_64 | `CM5-USB-Boot_<version>_amd64.AppImage` |
+| macOS 11+ (Apple Silicon and Intel) | `Pi-USB-Boot_<version>_universal.dmg` — Developer ID signed and notarized |
+| Linux x86_64 | `Pi-USB-Boot_<version>_amd64.AppImage` — built and tested on Ubuntu 26.04 |
 
-Verify downloads against `SHA256SUMS`. On Linux, `chmod +x` the AppImage; if your distro has
-no FUSE 2 (`libfuse2` / `libfuse2t64`), run it with `--appimage-extract-and-run`.
+Verify downloads against `SHA256SUMS`. On Linux, `chmod +x` the AppImage; if your distro
+has no FUSE 2 (`libfuse2` / `libfuse2t64`), use `--appimage-extract-and-run`.
+Compatibility with older Linux distributions has not been verified.
 
 ## Requirements
 
-- `rpiboot` with its `mass-storage-gadget64` directory:
-  - macOS: `brew install rpiboot`
-  - Debian / Ubuntu: `sudo apt install rpiboot`
-- [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the image.
-- A Compute Module 4 / 5 carrier with the nRPIBOOT jumper (or button) and a USB-C
-  data connection to the computer.
+- A current `rpiboot` installation and the appropriate boot files:
+  - Modern boards: `mass-storage-gadget64` (or its `mass-storage-gadget` alias).
+  - Earlier boards: the `msd` directory containing `bootcode.bin` and `start.elf`.
+  - macOS: `brew install rpiboot`; Debian / Ubuntu: `sudo apt install rpiboot`.
+  - If a package lacks the required files, follow the [upstream build/install instructions](https://github.com/raspberrypi/usbboot#building).
+- [Raspberry Pi Imager](https://www.raspberrypi.com/software/) to write the OS image.
+- A USB data connection to the board's device/OTG port and sufficient power.
+- On Linux, `pkexec` and a desktop authentication agent.
+
+## Prepare the board
+
+Connect **one board in RPIBOOT mode at a time**. The app prevents starting when
+multiple boot-mode boards are detected.
+
+- **Compute Modules:** enable the carrier's nRPIBOOT / EMMC-DISABLE jumper before
+  power-on and use its USB device port. The connector depends on the carrier.
+- **Pi 5 / 500 / 500+:** disconnect power, hold the power button, and reconnect
+  the USB-C data cable. Pi 500 requires keyboard firmware with RPIBOOT support.
+- **Pi 4B / 400:** RPIBOOT must be configured beforehand. The upstream GPIO method
+  permanently programs OTP; follow the [official preparation instructions](https://github.com/raspberrypi/usbboot#enabling-rpiboot-support--extra-steps-for-pi-4b-pi-400--pi-500)
+  for your exact board. This app does not perform that configuration.
+- **Earlier supported Pi boards:** use the USB device/OTG port and the model's
+  [USB device boot procedure](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#usb-device-boot-mode).
+  Pi 3A+ device boot is unavailable once USB host boot OTP has been enabled.
 
 ## Usage
 
-1. Fit the nRPIBOOT jumper, connect the carrier's USB-C port to the computer, power it.
-2. Wait for **Board: Detected**, then click **Expose disk over USB** and authenticate.
-3. When the disk appears, click **Open Raspberry Pi Imager** and write your OS to it.
-4. If macOS says the disk is not readable, choose **Ignore** — never **Initialize**.
+1. Prepare the board for RPIBOOT, connect its data port, and power it.
+2. Check the detected board and storage mode. If boot files are missing, update
+   the rpiboot installation before continuing.
+3. Click **Expose disk over USB** and authenticate.
+4. When the disk appears, open Raspberry Pi Imager and select the correct drive.
+5. If macOS reports that the disk is unreadable, choose **Ignore**, not **Initialize**.
+
+The old experimental Force PCIe option was removed in v0.2.0. Its outer config-file
+change was not verified to affect the Linux gadget's inner boot configuration.
+The app now uses the installed, unmodified boot files; current upstream Pi 5 gadget
+configuration already enables PCIe. See the [upstream gadget configuration](https://github.com/raspberrypi/buildroot/blob/mass-storage-gadget64/board/raspberrypi64-mass-storage-gadget/config.txt).
 
 ## Build
 
@@ -82,9 +121,9 @@ scanning and push protection enabled as another layer of protection.
 you click **Expose disk over USB** and runs exactly the binary shown under **rpiboot**.
 With a Homebrew install that binary lives in a user-writable prefix, so the trust is the
 same as typing `sudo rpiboot` yourself: anything already running as your user could have
-replaced it. The experimental PCIe option copies the gadget into a fresh `0700` temp
-directory and deletes it afterwards.
+replaced it. Boot files are read from the installed rpiboot package; the app does not
+modify them or change a board's EEPROM/OTP configuration.
 
 ## License
 
-MIT. `rpiboot` and the mass-storage gadget belong to Raspberry Pi Ltd and are not bundled.
+MIT. `rpiboot` and its boot images belong to Raspberry Pi Ltd and are not bundled.

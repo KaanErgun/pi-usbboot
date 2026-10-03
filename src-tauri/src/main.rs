@@ -1,3 +1,3 @@
 fn main() {
-    cm5_usbboot_lib::run()
+    pi_usbboot_lib::run()
 }

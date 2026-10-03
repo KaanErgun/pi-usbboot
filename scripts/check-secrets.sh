@@ -36,7 +36,7 @@ if [[ ! -f .gitignore || ! -f .gitleaks.toml ]]; then
   exit 1
 fi
 
-scan_tmp=$(mktemp -d "${TMPDIR:-/tmp}/cm5-secrets.XXXXXX")
+scan_tmp=$(mktemp -d "${TMPDIR:-/tmp}/pi-secrets.XXXXXX")
 trap 'rm -rf "$scan_tmp"' EXIT
 
 # Use only repository .gitignore files; a contributor's global excludes must not

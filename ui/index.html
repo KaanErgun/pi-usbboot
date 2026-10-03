@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CM5 USB Boot</title>
+    <title>Pi USB Boot</title>
     <link rel="stylesheet" href="style.css" />
     <script type="module" src="main.js"></script>
   </head>
@@ -17,18 +17,35 @@
       <section class="card">
         <div class="row">
           <span class="dot" id="device-dot"></span>
-          <div>
+          <div class="grow">
             <h2 data-i18n="step.device"></h2>
             <p id="device-text"></p>
-            <p class="muted small" id="device-help" data-i18n="device.help"></p>
+            <details class="muted small" id="device-help">
+              <summary data-i18n="device.help"></summary>
+              <ul class="preparation">
+                <li data-i18n="device.prepare.cm"></li>
+                <li data-i18n="device.prepare.pi5"></li>
+                <li data-i18n="device.prepare.pi4"></li>
+                <li data-i18n="device.prepare.older"></li>
+              </ul>
+            </details>
           </div>
         </div>
         <div class="row">
           <span class="dot" id="rpiboot-dot"></span>
-          <div>
+          <div class="grow">
             <h2 data-i18n="step.rpiboot"></h2>
             <p id="rpiboot-text"></p>
             <code id="rpiboot-install" hidden></code>
+          </div>
+        </div>
+        <div class="row">
+          <span class="dot" id="boot-dot"></span>
+          <div class="grow">
+            <h2 data-i18n="step.storage"></h2>
+            <p id="mode-text"></p>
+            <p class="muted small" id="boot-text" hidden></p>
+            <p class="hint small" id="boot-help" data-i18n="boot.help" hidden></p>
           </div>
         </div>
         <div class="row">
@@ -36,21 +53,13 @@
           <div class="grow">
             <h2 data-i18n="step.disks"></h2>
             <ul id="disks"></ul>
-            <p class="hint" id="mmc-hint" data-i18n="hint.mmc_only" hidden></p>
           </div>
         </div>
       </section>
 
       <section class="actions">
-        <button id="start" class="primary" data-i18n="action.start"></button>
+        <button id="start" class="primary" data-i18n="action.start" disabled></button>
         <button id="imager" data-i18n="action.imager"></button>
-        <label class="option">
-          <input type="checkbox" id="pcie" />
-          <span>
-            <span data-i18n="option.pcie"></span>
-            <span class="muted small block" data-i18n="option.pcie_help"></span>
-          </span>
-        </label>
       </section>
 
       <section>

@@ -1,4 +1,4 @@
-title = "CM5 USB Boot secret detection"
+title = "Pi USB Boot secret detection"
 
 [extend]
 useDefault = true

@@ -1,7 +1,10 @@
 type Disk = { device: string; size: string; name: string; kind: "nvme" | "mmc" | "other" };
 type Status = {
-  device: { chip: string; product: string | null } | null;
+  device: { chip: string; product: string | null; mode: "legacy" | "modern" } | null;
   rpiboot: string | null;
+  boot_files: string | null;
+  boot_error: string | null;
+  ready: boolean;
   disks: Disk[];
   usb_error: string | null;
 };
@@ -39,11 +42,11 @@ function log(text: string) {
 function render(s: Status) {
   last = s;
   const device = s.device;
-  setDot("device-dot", device ? "ok" : "wait");
+  setDot("device-dot", device ? "ok" : s.usb_error ? "warn" : "wait");
   $("device-text").textContent = device
     ? t("device.found", { chip: device.product ? `${device.chip} (${device.product})` : device.chip })
     : s.usb_error
-      ? t("error.usb", { error: s.usb_error })
+      ? strings[`error.${s.usb_error}`] ? t(`error.${s.usb_error}`) : t("error.usb", { error: s.usb_error })
       : t("device.waiting");
   $("device-help").hidden = !!device;
 
@@ -51,7 +54,18 @@ function render(s: Status) {
   $("rpiboot-text").textContent = s.rpiboot ? t("rpiboot.found", { path: s.rpiboot }) : t("rpiboot.missing");
   const install = $("rpiboot-install");
   install.hidden = !!s.rpiboot;
-  install.textContent = isMac ? "brew install rpiboot" : "sudo apt install rpiboot";
+  install.textContent = t(isMac ? "rpiboot.install.mac" : "rpiboot.install.linux");
+
+  $("mode-text").textContent = t(device ? `mode.${device.mode}` : "mode.waiting");
+  const bootError = s.boot_error && s.boot_error !== "device-missing" && s.boot_error !== "rpiboot-missing"
+    ? s.boot_error
+    : null;
+  setDot("boot-dot", bootError ? "warn" : s.boot_files ? "ok" : "wait");
+  $("boot-text").textContent = bootError
+    ? t(`error.${bootError}`)
+    : s.boot_files ? t("boot.ready") : t("boot.waiting");
+  $("boot-text").hidden = !device && !bootError;
+  $("boot-help").hidden = !bootError;
 
   const list = $("disks");
   list.replaceChildren(
@@ -71,28 +85,29 @@ function render(s: Status) {
       return li;
     }),
   );
-  const hasNvme = s.disks.some((d) => d.kind === "nvme");
-  setDot("disks-dot", hasNvme ? "ok" : s.disks.length ? "warn" : "wait");
-  $("mmc-hint").hidden = hasNvme || !s.disks.some((d) => d.kind === "mmc");
+  setDot("disks-dot", s.disks.length ? "ok" : "wait");
 
-  $<HTMLButtonElement>("start").disabled = running || !device || !s.rpiboot;
+  $<HTMLButtonElement>("start").disabled = running || !s.ready;
 }
 
 async function refresh() {
   try {
     render(await invoke<Status>("status"));
   } catch (e) {
+    last = null;
+    $<HTMLButtonElement>("start").disabled = true;
     log(String(e));
   }
 }
 
 async function start() {
+  if (running || !last?.ready) return;
   running = true;
   const button = $<HTMLButtonElement>("start");
   button.textContent = t("action.running");
   if (last) render(last);
   try {
-    log(await invoke<string>("start_gadget", { forcePcie: $<HTMLInputElement>("pcie").checked }));
+    log(await invoke<string>("start_gadget"));
     log(t("result.ok"));
   } catch (e) {
     const msg = String(e);

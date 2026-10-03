@@ -67,3 +67,25 @@ For subsequent submissions, use `--keychain-profile cm5-usbboot`. Keep the API
 private key outside the repository. Record each submission ID and query it if
 interrupted; staple only after `Accepted`, verify with `stapler validate` and
 Gatekeeper, and regenerate checksums after stapling.
+
+## 2026-10-03 — Pi USB Boot 0.2.0
+
+- Renamed the app and GitHub repository to Pi USB Boot / `pi-usbboot`. The macOS
+  bundle identifier and existing Keychain notarization profile stay unchanged.
+- Fixed boot-file selection: USB IDs 2763/2764 use legacy `msd`; BCM2711/2712 use
+  the Linux mass-storage gadget with the matching SoC bootloader. Binary and
+  payload discovery support independent installation prefixes.
+- Added readiness checks, multiple-board rejection, a concurrent-run guard,
+  fresh detection before elevation, and translated board preparation guidance.
+- Removed the unverified Force PCIe override; installed boot files remain unchanged.
+- Documented supported RPIBOOT models and board-specific preparation. This does
+  not add USB device boot to unsupported boards.
+- Validation: TypeScript, rustfmt, clippy and 16 Rust tests passed on macOS and
+  Ubuntu 26.04 x86_64. All 11 secret-guard regression scenarios passed. English
+  and Turkish UI states passed 28 headless Chrome assertions.
+- macOS universal build is Developer ID signed. Apple accepted notarization
+  submission `926213d5-8a24-47d6-898f-b551b332aec7`; distribution checks follow
+  the existing stapling and checksum procedure above.
+- Physical-board end-to-end operation and Linux privilege elevation with a board
+  remain unverified. Payload checks validate starting files, not every firmware
+  component or board-specific behavior.
