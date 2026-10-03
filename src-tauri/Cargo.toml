@@ -1,6 +1,6 @@
 [package]
 name = "pi-usbboot"
-version = "0.3.0"
+version = "0.3.1"
 description = "Expose storage on RPIBOOT-compatible Raspberry Pi boards over USB"
 authors = ["Kaan Ergun <kaanergun@me.com>"]
 license = "MIT"
